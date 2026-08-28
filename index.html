@@ -481,6 +481,9 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
             </button>
           </div>
+          <button class="result-expand-btn" id="baseRefreshBtn" title="Atualizar" aria-label="Atualizar registros">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+          </button>
         </div>
 
         <div class="db-count" id="baseCount"></div>
@@ -577,6 +580,7 @@
 
 <div class="toast-stack" id="toastStack"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 window.addEventListener('error', function(ev){
   try{
@@ -592,68 +596,108 @@ window.addEventListener('error', function(ev){
 });
 (function(){
 
-  /* ---------------- storage helpers ----------------
-     Local storage (localStorage, or an in-memory object if that's
-     blocked) is the source of truth — it never hangs and always
-     works. window.storage is used only as a best-effort bonus for
-     cross-device sync when it's actually available; it is always
-     raced against a short timeout so a slow/unresponsive bridge can
-     never freeze saving. */
-  const RECORDS_KEY = 'woody:records';
+  /* ---------------- Supabase ----------------
+     Configuração da conexão com o banco de dados. Chave no formato
+     novo do Supabase (sb_publishable_...) — é a substituta da antiga
+     "anon key" e funciona do mesmo jeito: pode ficar exposta no
+     código do site, pois quem protege os dados é o RLS. */
+  const SUPABASE_URL = 'https://njxgkzeuixmnhyokfvuc.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_G8fwYEdGly6SjjENiHsHoA__vz1O7cG';
+
+  const sb = (window.supabase && SUPABASE_ANON_KEY !== 'COLE_AQUI_SUA_CHAVE_ANON_PUBLIC')
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+
   const NAME_KEY = 'woody:my_name';
-  const MEM = {};
+  function getMyName(){
+    try{ return window.localStorage.getItem(NAME_KEY) || ''; }catch(e){ return ''; }
+  }
+  function setMyName(name){
+    try{ window.localStorage.setItem(NAME_KEY, name); }catch(e){}
+  }
 
-  function lsGet(key){
-    try{ return window.localStorage.getItem(key); }catch(e){ return (key in MEM) ? MEM[key] : null; }
+  function requireSupabase(){
+    if(!sb){
+      throw new Error('Supabase não configurado: cole a SUPABASE_ANON_KEY no código (procure por COLE_AQUI_SUA_CHAVE_ANON_PUBLIC).');
+    }
   }
-  function lsSet(key, value){
-    try{ window.localStorage.setItem(key, value); return true; }
-    catch(e){ MEM[key] = value; return true; }
-  }
-  function withTimeout(promise, ms){
-    return new Promise((resolve) => {
-      let done = false;
-      const timer = setTimeout(() => { if(!done){ done = true; resolve(null); } }, ms);
-      Promise.resolve(promise).then((v) => { if(!done){ done = true; clearTimeout(timer); resolve(v); } })
-        .catch(() => { if(!done){ done = true; clearTimeout(timer); resolve(null); } });
+
+  async function fetchAllRecords(){
+    requireSupabase();
+    const { data: recs, error: e1 } = await sb
+      .from('error_records')
+      .select('id, problema, erro, criado_por, criado_em')
+      .order('criado_em', { ascending:false });
+    if(e1) throw e1;
+
+    const { data: sols, error: e2 } = await sb
+      .from('error_solutions')
+      .select('id, record_id, texto, analista, data, complementar')
+      .order('data', { ascending:true });
+    if(e2) throw e2;
+
+    const byRecord = {};
+    (sols || []).forEach(s => {
+      (byRecord[s.record_id] = byRecord[s.record_id] || []).push({
+        id: s.id, texto: s.texto, analista: s.analista, data: s.data, complementar: s.complementar
+      });
     });
-  }
-  function hasBridge(){
-    return typeof window.storage !== 'undefined' && window.storage && typeof window.storage.get === 'function' && typeof window.storage.set === 'function';
+
+    return (recs || []).map(r => ({
+      id: r.id,
+      problema: r.problema,
+      erro: r.erro,
+      criadoPor: r.criado_por,
+      criadoEm: r.criado_em,
+      solutions: byRecord[r.id] || []
+    }));
   }
 
-  async function getRecords(){
-    if(hasBridge()){
-      const res = await withTimeout(window.storage.get(RECORDS_KEY, true), 2500);
-      if(res && res.value){
-        lsSet(RECORDS_KEY, res.value);
-        try{ const parsed = JSON.parse(res.value); if(Array.isArray(parsed)) return parsed; }catch(e){}
-      }
-    }
-    const local = lsGet(RECORDS_KEY);
-    if(local){ try{ const parsed = JSON.parse(local); if(Array.isArray(parsed)) return parsed; }catch(e){} }
-    return [];
+  async function insertRecordWithSolution(problema, erro, analista, texto){
+    requireSupabase();
+    const { data: rec, error: e1 } = await sb
+      .from('error_records')
+      .insert({ problema, erro, criado_por: analista })
+      .select()
+      .single();
+    if(e1) throw e1;
+    const { error: e2 } = await sb
+      .from('error_solutions')
+      .insert({ record_id: rec.id, texto, analista, complementar:false });
+    if(e2) throw e2;
+    return rec.id;
   }
-  async function saveRecords(records){
-    const json = JSON.stringify(records);
-    const okLocal = lsSet(RECORDS_KEY, json);
-    if(hasBridge()){
-      await withTimeout(window.storage.set(RECORDS_KEY, json, true), 2500);
-    }
-    return okLocal;
+
+  async function insertSolution(recordId, texto, analista, complementar){
+    requireSupabase();
+    const { error } = await sb
+      .from('error_solutions')
+      .insert({ record_id: recordId, texto, analista, complementar: complementar !== false });
+    if(error) throw error;
   }
-  async function getMyName(){
-    if(hasBridge()){
-      const res = await withTimeout(window.storage.get(NAME_KEY, false), 2000);
-      if(res && res.value){ lsSet(NAME_KEY, res.value); return res.value; }
-    }
-    return lsGet(NAME_KEY) || '';
+
+  async function updateRecordFields(recordId, problema, erro){
+    requireSupabase();
+    const { error } = await sb.from('error_records').update({ problema, erro }).eq('id', recordId);
+    if(error) throw error;
   }
-  async function setMyName(name){
-    lsSet(NAME_KEY, name);
-    if(hasBridge()){
-      await withTimeout(window.storage.set(NAME_KEY, name, false), 2000);
-    }
+
+  async function updateSolutionText(solutionId, texto){
+    requireSupabase();
+    const { error } = await sb.from('error_solutions').update({ texto }).eq('id', solutionId);
+    if(error) throw error;
+  }
+
+  async function deleteSolutionById(solutionId){
+    requireSupabase();
+    const { error } = await sb.from('error_solutions').delete().eq('id', solutionId);
+    if(error) throw error;
+  }
+
+  async function deleteRecordById(recordId){
+    requireSupabase();
+    const { error } = await sb.from('error_records').delete().eq('id', recordId);
+    if(error) throw error;
   }
 
   /* ---------------- utils ---------------- */
@@ -758,7 +802,7 @@ window.addEventListener('error', function(ev){
     navItems.forEach(b => b.classList.toggle('active', b.dataset.view === name));
     document.getElementById('sidebar').classList.remove('open');
     window.scrollTo({top:0, behavior:'instant' in window ? 'instant' : 'auto'});
-    if(name === 'base') renderBase();
+    if(name === 'base') refreshRecords();
     if(name === 'novo') document.getElementById('f_analista').value = MY_NAME;
   }
   navItems.forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
@@ -964,9 +1008,13 @@ window.addEventListener('error', function(ev){
 
     if(analista !== MY_NAME){
       MY_NAME = analista;
-      await setMyName(analista);
+      setMyName(analista);
       renderWhoami();
     }
+
+    try{
+      await refreshRecords(true);
+    }catch(e){}
 
     const erroNorm = normalize(erro);
     const existing = RECORDS.find(r => normalize(r.erro) === erroNorm);
@@ -976,19 +1024,16 @@ window.addEventListener('error', function(ev){
       return;
     }
 
-    const rec = {
-      id: uid(),
-      problema, erro,
-      solutions: [{ id: uid(), texto: procedimento, analista, data: new Date().toISOString(), complementar:false }],
-      criadoPor: analista,
-      criadoEm: new Date().toISOString()
-    };
-    RECORDS.push(rec);
-    const ok = await saveRecords(RECORDS);
-    if(!ok){ showBanner('err', 'Não foi possível salvar agora. Tente novamente.'); return; }
+    try{
+      await insertRecordWithSolution(problema, erro, analista, procedimento);
+    }catch(err){
+      console.error('Erro ao salvar no Supabase', err);
+      showBanner('err', 'Não foi possível salvar no banco de dados: ' + escapeHtml(err && err.message ? err.message : String(err)));
+      return;
+    }
     showBanner('ok', 'Registro criado com sucesso e adicionado à Base de Dados.');
     clearNovoFields();
-    updateDbCount();
+    await refreshRecords(true);
   }
 
   /* ---------------- confirmação de solução parecida/duplicada ---------------- */
@@ -1027,21 +1072,20 @@ window.addEventListener('error', function(ev){
     const procNorm = normalize(novo.procedimento);
     const isSame = existing.solutions.some(s => normalize(s.texto) === procNorm);
     confirmSolOverlay.classList.remove('active');
-    existing.solutions.push({
-      id: uid(),
-      texto: novo.procedimento,
-      analista: novo.analista,
-      data: new Date().toISOString(),
-      complementar: true
-    });
-    const ok = await saveRecords(RECORDS);
+    try{
+      await insertSolution(existing.id, novo.procedimento, novo.analista, true);
+    }catch(err){
+      console.error('Erro ao salvar no Supabase', err);
+      showBanner('err', 'Não foi possível salvar no banco de dados: ' + escapeHtml(err && err.message ? err.message : String(err)));
+      pendingSolucao = null;
+      return;
+    }
     pendingSolucao = null;
-    if(!ok){ showBanner('err', 'Não foi possível salvar agora. Tente novamente.'); return; }
     showBanner('warn', (isSame
       ? 'Essa solução já existia cadastrada, mas mesmo assim foi registrada em <b>seu nome</b> como '
       : 'Sua solução foi registrada como ') + '<b>solução complementar</b> ao erro existente.');
     clearNovoFields();
-    updateDbCount();
+    await refreshRecords(true);
   });
   confirmSolOverlay.addEventListener('click', (e) => { if(e.target === confirmSolOverlay){ confirmSolOverlay.classList.remove('active'); pendingSolucao = null; } });
   const baseList = document.getElementById('baseList');
@@ -1057,8 +1101,21 @@ window.addEventListener('error', function(ev){
     });
   });
   baseSearch.addEventListener('input', renderBase);
+  document.getElementById('baseRefreshBtn').addEventListener('click', () => refreshRecords());
 
   function updateDbCount(){ document.getElementById('dbCount').textContent = RECORDS.length; }
+
+  async function refreshRecords(silent){
+    try{
+      RECORDS = await fetchAllRecords();
+      updateDbCount();
+      if(views.base.classList.contains('active')) renderBase();
+      if(views.home.classList.contains('active')) renderHomeResults();
+    }catch(err){
+      console.error('Erro ao carregar registros do Supabase', err);
+      if(!silent) toast('err', 'Não foi possível carregar os dados do Supabase: ' + (err && err.message ? err.message : String(err)));
+    }
+  }
 
   function recFullCardHTML(rec, query){
     const isCreator = MY_NAME && normalize(rec.criadoPor) === normalize(MY_NAME);
@@ -1217,39 +1274,51 @@ window.addEventListener('error', function(ev){
     const rec = RECORDS.find(r => r.id === editingId);
     if(!rec) return;
     const isCreator = normalize(rec.criadoPor) === normalize(MY_NAME);
+    const saveBtn = document.getElementById('editSaveBtn');
 
+    let newProblema = null, newErro = null;
     if(isCreator){
       const p = document.getElementById('e_problema').value.trim();
       const er = document.getElementById('e_erro').value.trim();
       if(!p || !er){ toast('warn', 'Problema e erro não podem ficar vazios.'); return; }
       if(normalize(p) === normalize(er)){ toast('warn', 'Problema relatado e Erro apresentado não podem ter a mesma informação.'); return; }
-      rec.problema = p;
-      rec.erro = er;
+      newProblema = p; newErro = er;
     }
 
+    const solUpdates = [];
     const textareas = editSolutionsList.querySelectorAll('.e-sol-textarea:not(:disabled)');
     for(const ta of textareas){
       const sol = rec.solutions.find(s => s.id === ta.dataset.solId);
       if(!sol) continue;
       const val = ta.value.trim();
       if(!val){ toast('warn', 'Uma solução sua está vazia. Preencha ou use o ícone de excluir.'); return; }
-      sol.texto = val;
+      if(val !== sol.texto) solUpdates.push({ id: sol.id, texto: val });
     }
 
-    let addedCount = 0;
+    const newSolTexts = [];
     const newTextareas = editSolutionsList.querySelectorAll('.e-new-sol-textarea');
     for(const ta of newTextareas){
       const val = ta.value.trim();
-      if(!val) continue;
-      rec.solutions.push({ id: uid(), texto: val, analista: MY_NAME, data: new Date().toISOString(), complementar:true });
-      addedCount++;
+      if(val) newSolTexts.push(val);
     }
 
-    const ok = await saveRecords(RECORDS);
+    saveBtn.disabled = true;
+    try{
+      if(newProblema !== null) await updateRecordFields(rec.id, newProblema, newErro);
+      for(const u of solUpdates) await updateSolutionText(u.id, u.texto);
+      for(const texto of newSolTexts) await insertSolution(rec.id, texto, MY_NAME, true);
+    }catch(err){
+      console.error('Erro ao salvar alteração no Supabase', err);
+      toast('err', 'Não foi possível salvar a alteração: ' + (err && err.message ? err.message : String(err)));
+      saveBtn.disabled = false;
+      return;
+    }
+    saveBtn.disabled = false;
+
     editOverlay.classList.remove('active');
     editingId = null;
-    if(ok){ toast('ok', addedCount ? 'Registro atualizado e ' + addedCount + (addedCount===1?' nova solução incluída.':' novas soluções incluídas.') : 'Registro atualizado.'); renderBase(); }
-    else{ toast('err', 'Não foi possível salvar a alteração.'); }
+    toast('ok', newSolTexts.length ? 'Registro atualizado e ' + newSolTexts.length + (newSolTexts.length===1?' nova solução incluída.':' novas soluções incluídas.') : 'Registro atualizado.');
+    await refreshRecords(true);
   });
 
   document.getElementById('deleteCancelBtn').addEventListener('click', () => { deleteOverlay.classList.remove('active'); pendingDelete = null; });
@@ -1257,15 +1326,24 @@ window.addEventListener('error', function(ev){
     if(!pendingDelete) return;
     const rec = RECORDS.find(r => r.id === pendingDelete.recordId);
     if(!rec){ deleteOverlay.classList.remove('active'); pendingDelete = null; return; }
+    const confirmBtn = document.getElementById('deleteConfirmBtn');
 
     if(pendingDelete.type === 'record'){
       if(normalize(rec.criadoPor) !== normalize(MY_NAME)){ toast('err', 'Só quem criou este registro pode excluí-lo.'); deleteOverlay.classList.remove('active'); pendingDelete = null; return; }
-      RECORDS = RECORDS.filter(r => r.id !== rec.id);
-      const ok = await saveRecords(RECORDS);
+      confirmBtn.disabled = true;
+      try{
+        await deleteRecordById(rec.id);
+      }catch(err){
+        console.error('Erro ao excluir no Supabase', err);
+        toast('err', 'Não foi possível excluir agora: ' + (err && err.message ? err.message : String(err)));
+        confirmBtn.disabled = false;
+        return;
+      }
+      confirmBtn.disabled = false;
       deleteOverlay.classList.remove('active');
       pendingDelete = null;
-      if(ok){ toast('ok', 'Registro excluído.'); renderBase(); }
-      else{ toast('err', 'Não foi possível excluir agora.'); }
+      toast('ok', 'Registro excluído.');
+      await refreshRecords(true);
       return;
     }
 
@@ -1274,18 +1352,26 @@ window.addEventListener('error', function(ev){
     if(!sol){ deleteOverlay.classList.remove('active'); pendingDelete = null; return; }
     if(normalize(sol.analista) !== normalize(MY_NAME)){ toast('err', 'Só quem cadastrou essa solução pode excluí-la.'); deleteOverlay.classList.remove('active'); pendingDelete = null; return; }
 
-    if(rec.solutions.length === 1){
-      RECORDS = RECORDS.filter(r => r.id !== rec.id);
-    }else{
-      rec.solutions = rec.solutions.filter(s => s.id !== sol.id);
+    confirmBtn.disabled = true;
+    try{
+      if(rec.solutions.length === 1){
+        await deleteRecordById(rec.id);
+      }else{
+        await deleteSolutionById(sol.id);
+      }
+    }catch(err){
+      console.error('Erro ao excluir no Supabase', err);
+      toast('err', 'Não foi possível excluir agora: ' + (err && err.message ? err.message : String(err)));
+      confirmBtn.disabled = false;
+      return;
     }
-    const ok = await saveRecords(RECORDS);
+    confirmBtn.disabled = false;
     deleteOverlay.classList.remove('active');
     pendingDelete = null;
     editOverlay.classList.remove('active');
     editingId = null;
-    if(ok){ toast('ok', 'Solução excluída.'); renderBase(); }
-    else{ toast('err', 'Não foi possível excluir agora.'); }
+    toast('ok', 'Solução excluída.');
+    await refreshRecords(true);
   });
 
   [editOverlay, deleteOverlay, nameOverlay].forEach(ov => {
@@ -1294,12 +1380,20 @@ window.addEventListener('error', function(ev){
 
   /* ---------------- init ---------------- */
   async function init(){
-    MY_NAME = await getMyName();
+    MY_NAME = getMyName();
     renderWhoami();
-    RECORDS = await getRecords();
-    updateDbCount();
-    renderHomeResults();
     document.getElementById('f_analista').value = MY_NAME;
+
+    if(!sb){
+      const box = document.createElement('div');
+      box.className = 'banner banner-err';
+      box.style.cssText = 'position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:9999; max-width:560px;';
+      box.textContent = 'Supabase não configurado: abra o arquivo e cole a SUPABASE_ANON_KEY (procure por COLE_AQUI_SUA_CHAVE_ANON_PUBLIC no <script>).';
+      document.body.appendChild(box);
+      return;
+    }
+
+    await refreshRecords();
   }
   init();
 
