@@ -867,9 +867,15 @@ window.addEventListener('error', function(ev){
       errBox.innerHTML = '<div class="banner banner-err">Supabase não configurado: cole a SUPABASE_ANON_KEY no código.</div>';
       return;
     }
+    const stuckTimer = setTimeout(() => {
+      errBox.style.display = 'block';
+      errBox.innerHTML = '<div class="banner banner-warn">Está demorando mais que o normal. Se a tela do Google não abrir, <a href="#" onclick="window.location.reload(); return false;" style="color:inherit; text-decoration:underline;">recarregue a página</a> e tente de novo.</div>';
+    }, 4000);
     try{
       await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } });
+      clearTimeout(stuckTimer);
     }catch(err){
+      clearTimeout(stuckTimer);
       errBox.style.display = 'block';
       errBox.innerHTML = '<div class="banner banner-err">Não foi possível iniciar o login: ' + escapeHtml(err && err.message ? err.message : String(err)) + '</div>';
     }
@@ -877,7 +883,15 @@ window.addEventListener('error', function(ev){
 
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     if(!sb) return;
-    await sb.auth.signOut();
+    try{
+      await sb.auth.signOut();
+    }catch(err){
+      console.error('Erro ao sair', err);
+    }
+    // Recarrega a página inteira: o SDK do Supabase às vezes mantém uma
+    // trava de sessão interna que impede um novo login na mesma aba
+    // logo após sair. Um recarregamento garante um estado limpo.
+    window.location.reload();
   });
 
   function extractUser(session){
