@@ -850,6 +850,13 @@ window.addEventListener('error', function(ev){
   /* ---------------- state ---------------- */
   let RECORDS = [];
   let CURRENT_USER = null;
+
+  function canManageRecord(rec){
+    return !!CURRENT_USER && (CURRENT_USER.isAdmin || rec.criadoPorUid === CURRENT_USER.id);
+  }
+  function canManageSolution(sol){
+    return !!CURRENT_USER && (CURRENT_USER.isAdmin || sol.analistaUid === CURRENT_USER.id);
+  }
   let baseMode = 'list';
 
   /* ---------------- toasts ---------------- */
@@ -1276,16 +1283,19 @@ window.addEventListener('error', function(ev){
 
   function recFullCardHTML(rec, query){
     const myUid = CURRENT_USER && CURRENT_USER.id;
-    const isCreator = myUid && rec.criadoPorUid === myUid;
-    const ownsAnySolution = myUid && rec.solutions.some(s => s.analistaUid === myUid);
+    const isAdmin = !!(CURRENT_USER && CURRENT_USER.isAdmin);
+    const isCreator = isAdmin || (myUid && rec.criadoPorUid === myUid);
+    const ownsAnySolution = isAdmin || (myUid && rec.solutions.some(s => s.analistaUid === myUid));
 
     let noteHtml = '';
-    if(isCreator){
+    if(isAdmin){
+      noteHtml = '<div class="locked-note inline">Você é administrador: pode editar e excluir tudo neste registro, inclusive o que outros colaboradores cadastraram.</div>';
+    }else if(isCreator){
       noteHtml = '';
     }else if(ownsAnySolution){
-      noteHtml = '<div class="locked-note inline">Você só pode editar/excluir a(s) solução(ões) que cadastrou nesse registro. Só ' + escapeHtml(rec.criadoPor) + ' pode alterar o problema/erro ou excluir o registro inteiro.</div>';
+      noteHtml = '<div class="locked-note inline">Você só pode editar/excluir a(s) solução(ões) que cadastrou nesse registro. Só ' + escapeHtml(rec.criadoPor) + ' (ou um administrador) pode alterar o problema/erro ou excluir o registro inteiro.</div>';
     }else{
-      noteHtml = '<div class="locked-note inline">Você pode abrir para incluir uma nova solução complementar. Só ' + escapeHtml(rec.criadoPor) + ' pode alterar o problema/erro, e cada solução só pode ser editada/excluída por quem a cadastrou.</div>';
+      noteHtml = '<div class="locked-note inline">Você pode abrir para incluir uma nova solução complementar. Só ' + escapeHtml(rec.criadoPor) + ' (ou um administrador) pode alterar o problema/erro, e cada solução só pode ser editada/excluída por quem a cadastrou.</div>';
     }
 
     const actionsHtml = '<div class="rec-actions">' +
@@ -1424,8 +1434,8 @@ window.addEventListener('error', function(ev){
   let pendingDelete = null; // { type:'record'|'solution', recordId, solutionId }
 
   function openEditModal(rec){
-    const myUid = CURRENT_USER && CURRENT_USER.id;
-    const isCreator = myUid && rec.criadoPorUid === myUid;
+    const isAdmin = !!(CURRENT_USER && CURRENT_USER.isAdmin);
+    const isCreator = canManageRecord(rec);
     editingId = rec.id;
 
     const eP = document.getElementById('e_problema');
@@ -1435,15 +1445,17 @@ window.addEventListener('error', function(ev){
     eP.disabled = !isCreator;
     eE.disabled = !isCreator;
 
-    const ownsAnySolution = myUid && rec.solutions.some(s => s.analistaUid === myUid);
-    document.getElementById('editSub').textContent = isCreator
-      ? 'Você criou este registro: pode alterar o problema, o erro e qualquer solução sua.'
-      : ownsAnySolution
-        ? 'Você não criou este registro, então só pode alterar ou excluir a(s) solução(ões) que você mesmo cadastrou abaixo.'
-        : 'Você não criou este registro nem cadastrou nenhuma solução nele — use "Adicionar nova solução" abaixo para incluir a sua.';
+    const ownsAnySolution = isCreator || rec.solutions.some(s => canManageSolution(s));
+    document.getElementById('editSub').textContent = isAdmin
+      ? 'Você é administrador: pode alterar o problema, o erro e qualquer solução deste registro, mesmo as de outros colaboradores.'
+      : isCreator
+        ? 'Você criou este registro: pode alterar o problema, o erro e qualquer solução sua.'
+        : ownsAnySolution
+          ? 'Você não criou este registro, então só pode alterar ou excluir a(s) solução(ões) que você mesmo cadastrou abaixo.'
+          : 'Você não criou este registro nem cadastrou nenhuma solução nele — use "Adicionar nova solução" abaixo para incluir a sua.';
 
     editSolutionsList.innerHTML = rec.solutions.map((s, idx) => {
-      const ownsIt = myUid && s.analistaUid === myUid;
+      const ownsIt = canManageSolution(s);
       const fieldLabel = idx === 0 ? 'Procedimentos realizados para solução' : 'Solução ' + (idx + 1);
       const compHeader = idx === 1 ? '<div class="rec-comp-title" style="margin-top:20px;">Soluções complementares</div>' : '';
       const sub = 'Por ' + escapeHtml(s.analista) + ' · ' + fmtDate(s.data) + (s.complementar ? ' · complementar' : '');
@@ -1454,7 +1466,7 @@ window.addEventListener('error', function(ev){
         '</div>' +
         '<textarea class="e-sol-textarea" data-sol-id="' + s.id + '" style="min-height:100px;" ' + (ownsIt ? '' : 'disabled') + '>' + escapeHtml(s.texto) + '</textarea>' +
         '<div class="rec-field-sub">' + sub + '</div>' +
-        (!ownsIt ? '<div class="locked-note inline">Cadastrada por ' + escapeHtml(s.analista) + ' — só quem cadastrou pode alterá-la</div>' : '') +
+        (!ownsIt ? '<div class="locked-note inline">Cadastrada por ' + escapeHtml(s.analista) + ' — só quem cadastrou (ou um administrador) pode alterá-la</div>' : '') +
       '</div>';
     }).join('');
 
@@ -1473,7 +1485,7 @@ window.addEventListener('error', function(ev){
     if(delBtn){
       const rec = RECORDS.find(r => r.id === delBtn.dataset.id);
       if(!rec) return;
-      if(!CURRENT_USER || rec.criadoPorUid !== CURRENT_USER.id){ toast('err', 'Só quem criou este registro pode excluí-lo.'); return; }
+      if(!CURRENT_USER || !canManageRecord(rec)){ toast('err', 'Só quem criou este registro (ou um administrador) pode excluí-lo.'); return; }
       pendingDelete = { type:'record', recordId: rec.id };
       document.getElementById('deleteTitle').textContent = 'Excluir registro?';
       document.getElementById('deleteSub').textContent = 'Essa ação remove o erro e todas as soluções vinculadas a ele (inclusive as de outros analistas). Não é possível desfazer.';
@@ -1494,7 +1506,7 @@ window.addEventListener('error', function(ev){
     if(!rec) return;
     const sol = rec.solutions.find(s => s.id === delBtn.dataset.solId);
     if(!sol) return;
-    if(!CURRENT_USER || sol.analistaUid !== CURRENT_USER.id){ toast('err', 'Só quem cadastrou essa solução pode excluí-la.'); return; }
+    if(!CURRENT_USER || !canManageSolution(sol)){ toast('err', 'Só quem cadastrou essa solução (ou um administrador) pode excluí-la.'); return; }
     pendingDelete = { type:'solution', recordId: rec.id, solutionId: sol.id };
     document.getElementById('deleteTitle').textContent = 'Excluir esta solução?';
     document.getElementById('deleteSub').textContent = rec.solutions.length === 1
@@ -1527,7 +1539,7 @@ window.addEventListener('error', function(ev){
     const rec = RECORDS.find(r => r.id === editingId);
     if(!rec) return;
     if(!CURRENT_USER){ toast('err', 'Você precisa estar logado.'); return; }
-    const isCreator = rec.criadoPorUid === CURRENT_USER.id;
+    const isCreator = canManageRecord(rec);
     const saveBtn = document.getElementById('editSaveBtn');
 
     let newProblema = null, newErro = null;
@@ -1602,7 +1614,7 @@ window.addEventListener('error', function(ev){
     if(!rec){ deleteOverlay.classList.remove('active'); pendingDelete = null; return; }
 
     if(pendingDelete.type === 'record'){
-      if(!CURRENT_USER || rec.criadoPorUid !== CURRENT_USER.id){ toast('err', 'Só quem criou este registro pode excluí-lo.'); deleteOverlay.classList.remove('active'); pendingDelete = null; return; }
+      if(!CURRENT_USER || !canManageRecord(rec)){ toast('err', 'Só quem criou este registro (ou um administrador) pode excluí-lo.'); deleteOverlay.classList.remove('active'); pendingDelete = null; return; }
       confirmBtn.disabled = true;
       try{
         await deleteRecordById(rec.id);
@@ -1623,7 +1635,7 @@ window.addEventListener('error', function(ev){
     // type === 'solution'
     const sol = rec.solutions.find(s => s.id === pendingDelete.solutionId);
     if(!sol){ deleteOverlay.classList.remove('active'); pendingDelete = null; return; }
-    if(!CURRENT_USER || sol.analistaUid !== CURRENT_USER.id){ toast('err', 'Só quem cadastrou essa solução pode excluí-la.'); deleteOverlay.classList.remove('active'); pendingDelete = null; return; }
+    if(!CURRENT_USER || !canManageSolution(sol)){ toast('err', 'Só quem cadastrou essa solução (ou um administrador) pode excluí-la.'); deleteOverlay.classList.remove('active'); pendingDelete = null; return; }
 
     confirmBtn.disabled = true;
     try{
