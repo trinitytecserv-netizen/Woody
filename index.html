@@ -949,7 +949,7 @@ window.addEventListener('error', function(ev){
     }
     const stuckTimer = setTimeout(() => {
       errBox.style.display = 'block';
-      errBox.innerHTML = '<div class="banner banner-warn">Está demorando mais que o normal. Se a tela do Google não abrir, <a href="#" onclick="window.location.reload(); return false;" style="color:inherit; text-decoration:underline;">recarregue a página</a> e tente de novo.</div>';
+      errBox.innerHTML = '<div class="banner banner-warn">Está demorando mais que o normal. Se a tela do Google não abrir, <button type="button" onclick="window.location.reload();" style="background:none; border:none; padding:0; margin:0; color:inherit; text-decoration:underline; cursor:pointer; font:inherit;">recarregue a página</button> e tente de novo.</div>';
     }, 4000);
     try{
       await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + window.location.pathname } });
