@@ -403,6 +403,11 @@
         Base de Dados
         <span class="nav-count" id="dbCount">0</span>
       </button>
+      <button class="nav-item" data-view="colaboradores" id="navColaboradores" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Colaboradores
+        <span class="nav-count" id="collabCount">0</span>
+      </button>
     </nav>
 
     <div class="sidebar-spacer"></div>
@@ -514,6 +519,45 @@
         <div class="db-count" id="baseCount"></div>
         <div class="db-list" id="baseList"></div>
         <div class="empty-state" id="baseEmpty" style="display:none;"></div>
+      </div>
+    </section>
+
+    <!-- COLABORADORES (só admin) -->
+    <section class="view" id="view-colaboradores">
+      <div class="page">
+        <div class="page-head">
+          <div>
+            <h1>Colaboradores</h1>
+            <p>Só quem estiver cadastrado aqui com um e-mail do Google consegue entrar no sistema. Marcar como administrador dá acesso a esta tela.</p>
+          </div>
+        </div>
+
+        <div id="collabBanner"></div>
+
+        <div class="form-card" style="margin-bottom:24px;">
+          <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end;">
+            <div class="field" style="flex:1; min-width:220px; margin-bottom:0;">
+              <label for="c_email">E-mail (Google)</label>
+              <input type="text" id="c_email" placeholder="nome@empresa.com">
+            </div>
+            <div class="field" style="flex:1; min-width:180px; margin-bottom:0;">
+              <label for="c_nome">Nome</label>
+              <input type="text" id="c_nome" placeholder="Nome do colaborador">
+            </div>
+            <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-dim); padding-bottom:12px; white-space:nowrap;">
+              <input type="checkbox" id="c_admin" style="width:16px; height:16px;">
+              Administrador
+            </label>
+            <button type="button" class="btn btn-primary" id="collabAddBtn" style="padding-bottom:12px; padding-top:12px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Adicionar
+            </button>
+          </div>
+        </div>
+
+        <div class="db-count" id="collabListCount"></div>
+        <div class="db-list" id="collabList"></div>
+        <div class="empty-state" id="collabEmpty" style="display:none;"></div>
       </div>
     </section>
 
@@ -703,6 +747,33 @@ window.addEventListener('error', function(ev){
     if(error) throw error;
   }
 
+  /* ---------------- colaboradores ---------------- */
+  async function fetchMyCollaboratorRow(email){
+    requireSupabase();
+    const { data, error } = await sb.from('collaborators').select('id, email, nome, is_admin').eq('email', email).maybeSingle();
+    if(error) throw error;
+    return data || null;
+  }
+
+  async function fetchCollaborators(){
+    requireSupabase();
+    const { data, error } = await sb.from('collaborators').select('id, email, nome, is_admin, criado_em').order('criado_em', { ascending:true });
+    if(error) throw error;
+    return data || [];
+  }
+
+  async function insertCollaborator(email, nome, isAdmin){
+    requireSupabase();
+    const { error } = await sb.from('collaborators').insert({ email, nome: nome || null, is_admin: !!isAdmin });
+    if(error) throw error;
+  }
+
+  async function deleteCollaboratorById(id){
+    requireSupabase();
+    const { error } = await sb.from('collaborators').delete().eq('id', id);
+    if(error) throw error;
+  }
+
   /* ---------------- utils ---------------- */
   function normalize(str){
     return (str || '')
@@ -797,16 +868,18 @@ window.addEventListener('error', function(ev){
   }
 
   /* ---------------- nav / views ---------------- */
-  const views = { home: document.getElementById('view-home'), novo: document.getElementById('view-novo'), base: document.getElementById('view-base') };
+  const views = { home: document.getElementById('view-home'), novo: document.getElementById('view-novo'), base: document.getElementById('view-base'), colaboradores: document.getElementById('view-colaboradores') };
   const navItems = document.querySelectorAll('.nav-item');
 
   function showView(name){
+    if(name === 'colaboradores' && !(CURRENT_USER && CURRENT_USER.isAdmin)) return;
     Object.keys(views).forEach(k => views[k].classList.toggle('active', k === name));
     navItems.forEach(b => b.classList.toggle('active', b.dataset.view === name));
     document.getElementById('sidebar').classList.remove('open');
     window.scrollTo({top:0, behavior:'instant' in window ? 'instant' : 'auto'});
     if(name === 'base') refreshRecords();
     if(name === 'novo') updateNovoAsWho();
+    if(name === 'colaboradores') refreshCollaborators();
   }
   navItems.forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
   document.getElementById('goHomeBtn').addEventListener('click', () => {
@@ -872,7 +945,7 @@ window.addEventListener('error', function(ev){
       errBox.innerHTML = '<div class="banner banner-warn">Está demorando mais que o normal. Se a tela do Google não abrir, <a href="#" onclick="window.location.reload(); return false;" style="color:inherit; text-decoration:underline;">recarregue a página</a> e tente de novo.</div>';
     }, 4000);
     try{
-      await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } });
+      await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + window.location.pathname } });
       clearTimeout(stuckTimer);
     }catch(err){
       clearTimeout(stuckTimer);
@@ -907,16 +980,52 @@ window.addEventListener('error', function(ev){
   }
 
   async function handleSession(session){
-    CURRENT_USER = extractUser(session);
-    if(CURRENT_USER){
-      document.getElementById('loginGate').style.display = 'none';
-      document.getElementById('app').style.display = 'flex';
-      renderWhoami();
-      await refreshRecords();
-    }else{
+    const user = extractUser(session);
+
+    if(!user){
+      CURRENT_USER = null;
       document.getElementById('app').style.display = 'none';
       document.getElementById('loginGate').style.display = 'flex';
+      return;
     }
+
+    // Confere se o e-mail está na lista de colaboradores cadastrados.
+    // Sem isso, mesmo logado com uma conta Google válida, a pessoa não
+    // pode usar o sistema — é o que garante o "acesso restrito".
+    let collabRow = null;
+    try{
+      collabRow = await fetchMyCollaboratorRow(user.email);
+    }catch(err){
+      console.error('Erro ao checar colaborador', err);
+      CURRENT_USER = null;
+      document.getElementById('app').style.display = 'none';
+      document.getElementById('loginGate').style.display = 'flex';
+      const errBox = document.getElementById('loginError');
+      errBox.style.display = 'block';
+      errBox.innerHTML = '<div class="banner banner-err">Não foi possível confirmar seu acesso: ' + escapeHtml(err && err.message ? err.message : String(err)) + '</div>';
+      try{ await sb.auth.signOut(); }catch(e){}
+      return;
+    }
+
+    if(!collabRow){
+      CURRENT_USER = null;
+      document.getElementById('app').style.display = 'none';
+      document.getElementById('loginGate').style.display = 'flex';
+      const errBox = document.getElementById('loginError');
+      errBox.style.display = 'block';
+      errBox.innerHTML = '<div class="banner banner-err">O e-mail <b>' + escapeHtml(user.email) + '</b> não está cadastrado como colaborador. Fale com o administrador para liberar seu acesso.</div>';
+      try{ await sb.auth.signOut(); }catch(e){}
+      return;
+    }
+
+    CURRENT_USER = user;
+    CURRENT_USER.isAdmin = !!collabRow.is_admin;
+    document.getElementById('navColaboradores').style.display = CURRENT_USER.isAdmin ? '' : 'none';
+
+    document.getElementById('loginGate').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    renderWhoami();
+    await refreshRecords();
   }
 
   /* ---------------- HOME SEARCH ---------------- */
@@ -1213,6 +1322,100 @@ window.addEventListener('error', function(ev){
     baseList.innerHTML = sorted.map(r => recFullCardHTML(r, raw)).join('');
   }
 
+  /* ---------------- COLABORADORES ---------------- */
+  let COLLABORATORS = [];
+  const collabList = document.getElementById('collabList');
+  const collabEmpty = document.getElementById('collabEmpty');
+  const collabListCount = document.getElementById('collabListCount');
+  const collabBanner = document.getElementById('collabBanner');
+
+  function showCollabBanner(kind, html){
+    const icon = kind === 'ok' ? ICONS.ok : (kind === 'warn' ? ICONS.warn : ICONS.err);
+    collabBanner.innerHTML = '<div class="banner banner-' + kind + '">' + icon + '<div>' + html + '</div></div>';
+  }
+
+  function collabCardHTML(c){
+    const isMe = CURRENT_USER && normalize(c.email) === normalize(CURRENT_USER.email);
+    return '<div class="rec-card" data-id="' + c.id + '">' +
+      '<div class="rec-top" style="display:flex; align-items:center; justify-content:space-between; gap:12px;">' +
+        '<div>' +
+          '<div class="rec-erro" style="font-size:14px;">' + escapeHtml(c.nome || c.email) + (isMe ? ' <span class="pill pill-sol">você</span>' : '') + '</div>' +
+          '<div class="rec-problema" style="margin-top:4px;">' + escapeHtml(c.email) + '</div>' +
+        '</div>' +
+        (c.is_admin ? '<span class="badge" style="color:var(--comp-title); border-color:rgba(244,172,8,0.35);">Administrador</span>' : '<span class="badge">Colaborador</span>') +
+      '</div>' +
+      '<div class="rec-footer"><span>Cadastrado em ' + fmtDate(c.criado_em) + '</span>' +
+        (isMe ? '' : '<button class="btn btn-danger btn-sm act-collab-delete" data-id="' + c.id + '" data-email="' + escapeHtml(c.email) + '">Excluir</button>') +
+      '</div>' +
+    '</div>';
+  }
+
+  function renderCollabList(){
+    collabListCount.textContent = COLLABORATORS.length + (COLLABORATORS.length===1 ? ' colaborador cadastrado' : ' colaboradores cadastrados');
+    if(COLLABORATORS.length === 0){
+      collabList.innerHTML = '';
+      collabEmpty.style.display = 'block';
+      collabEmpty.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><div class="t1">Nenhum colaborador cadastrado</div><div class="t2">Adicione um e-mail acima para liberar o acesso.</div>';
+      return;
+    }
+    collabEmpty.style.display = 'none';
+    collabList.className = 'db-list';
+    collabList.innerHTML = COLLABORATORS.map(collabCardHTML).join('');
+  }
+
+  async function refreshCollaborators(){
+    if(!CURRENT_USER || !CURRENT_USER.isAdmin) return;
+    try{
+      COLLABORATORS = await fetchCollaborators();
+      document.getElementById('collabCount').textContent = COLLABORATORS.length;
+      renderCollabList();
+    }catch(err){
+      console.error('Erro ao carregar colaboradores', err);
+      showCollabBanner('err', 'Não foi possível carregar os colaboradores: ' + escapeHtml(err && err.message ? err.message : String(err)));
+    }
+  }
+
+  document.getElementById('collabAddBtn').addEventListener('click', async () => {
+    const emailEl = document.getElementById('c_email');
+    const nomeEl = document.getElementById('c_nome');
+    const adminEl = document.getElementById('c_admin');
+    const email = emailEl.value.trim().toLowerCase();
+    const nome = nomeEl.value.trim();
+    const isAdmin = adminEl.checked;
+
+    if(!email || !email.includes('@')){
+      showCollabBanner('err', 'Informe um e-mail válido.');
+      emailEl.focus();
+      return;
+    }
+    if(COLLABORATORS.some(c => normalize(c.email) === normalize(email))){
+      showCollabBanner('warn', 'Esse e-mail já está cadastrado.');
+      return;
+    }
+
+    try{
+      await insertCollaborator(email, nome, isAdmin);
+    }catch(err){
+      console.error('Erro ao adicionar colaborador', err);
+      showCollabBanner('err', 'Não foi possível adicionar: ' + escapeHtml(err && err.message ? err.message : String(err)));
+      return;
+    }
+    showCollabBanner('ok', 'Colaborador <b>' + escapeHtml(email) + '</b> adicionado' + (isAdmin ? ' como administrador' : '') + '.');
+    emailEl.value = '';
+    nomeEl.value = '';
+    adminEl.checked = false;
+    await refreshCollaborators();
+  });
+
+  collabList.addEventListener('click', (e) => {
+    const delBtn = e.target.closest('.act-collab-delete');
+    if(!delBtn) return;
+    pendingDelete = { type:'collaborator', collaboratorId: delBtn.dataset.id, collaboratorEmail: delBtn.dataset.email };
+    document.getElementById('deleteTitle').textContent = 'Remover colaborador?';
+    document.getElementById('deleteSub').textContent = 'A pessoa com o e-mail ' + delBtn.dataset.email + ' perde o acesso ao sistema imediatamente. Não é possível desfazer.';
+    document.getElementById('deleteOverlay').classList.add('active');
+  });
+
   /* edit / delete handlers (delegated) */
   const editOverlay = document.getElementById('editOverlay');
   const deleteOverlay = document.getElementById('deleteOverlay');
@@ -1375,9 +1578,28 @@ window.addEventListener('error', function(ev){
   document.getElementById('deleteCancelBtn').addEventListener('click', () => { deleteOverlay.classList.remove('active'); pendingDelete = null; });
   document.getElementById('deleteConfirmBtn').addEventListener('click', async () => {
     if(!pendingDelete) return;
+    const confirmBtn = document.getElementById('deleteConfirmBtn');
+
+    if(pendingDelete.type === 'collaborator'){
+      confirmBtn.disabled = true;
+      try{
+        await deleteCollaboratorById(pendingDelete.collaboratorId);
+      }catch(err){
+        console.error('Erro ao remover colaborador', err);
+        toast('err', 'Não foi possível remover: ' + (err && err.message ? err.message : String(err)));
+        confirmBtn.disabled = false;
+        return;
+      }
+      confirmBtn.disabled = false;
+      deleteOverlay.classList.remove('active');
+      pendingDelete = null;
+      toast('ok', 'Colaborador removido.');
+      await refreshCollaborators();
+      return;
+    }
+
     const rec = RECORDS.find(r => r.id === pendingDelete.recordId);
     if(!rec){ deleteOverlay.classList.remove('active'); pendingDelete = null; return; }
-    const confirmBtn = document.getElementById('deleteConfirmBtn');
 
     if(pendingDelete.type === 'record'){
       if(!CURRENT_USER || rec.criadoPorUid !== CURRENT_USER.id){ toast('err', 'Só quem criou este registro pode excluí-lo.'); deleteOverlay.classList.remove('active'); pendingDelete = null; return; }
@@ -1447,6 +1669,14 @@ window.addEventListener('error', function(ev){
 
     const { data: { session } } = await sb.auth.getSession();
     await handleSession(session);
+
+    // Limpa qualquer resquício de parâmetros de login (?code=..., #access_token=...)
+    // que o Supabase deixa na URL depois de processar o retorno do Google.
+    // Sem isso, um F5 ou um "reload()" mais tarde reenviaria um código já
+    // usado, e o login seguinte travaria sem erro nenhum.
+    if(window.location.search || window.location.hash){
+      window.history.replaceState(null, document.title, window.location.pathname);
+    }
   }
   init();
 
