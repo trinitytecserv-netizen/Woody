@@ -1013,7 +1013,7 @@ window.addEventListener('error', function(ev){
       document.getElementById('loginGate').style.display = 'flex';
       const errBox = document.getElementById('loginError');
       errBox.style.display = 'block';
-      errBox.innerHTML = '<div class="banner banner-err">O e-mail <b>' + escapeHtml(user.email) + '</b> não está cadastrado como colaborador. Fale com o administrador para liberar seu acesso.</div>';
+      errBox.innerHTML = '<div class="banner banner-err">Usuário não cadastrado! Contate o Administrador do Sistema para liberação.</div>';
       try{ await sb.auth.signOut(); }catch(e){}
       return;
     }
