@@ -27,6 +27,7 @@
     --green: #7fae7a;
     --field-title: #06ACF8;
     --comp-title: #F4AC08;
+    --mark-blue: #00E5FF;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -219,7 +220,7 @@
   .empty-state .t2{ font-size:12.5px; }
 
   /* highlight matched text */
-  mark{ background:var(--blue-soft); color:var(--blue); border-radius:3px; padding:0 1px; }
+  mark{ background:rgba(0,229,255,0.2); color:var(--mark-blue); border-radius:3px; padding:0 2px; text-shadow:0 0 10px rgba(0,229,255,0.55); }
 
   /* ---- SHARED PAGE HEADER ---- */
   .page{ max-width:900px; margin:0 auto; padding:44px 32px 70px; }
@@ -1072,7 +1073,12 @@ window.addEventListener('error', function(ev){
       return;
     }
 
-    const matches = RECORDS.filter(r => matchRecord(r, q)).sort((a,b)=> new Date(b.criadoEm) - new Date(a.criadoEm));
+    const matches = RECORDS.filter(r => matchRecord(r, q)).sort((a,b) => {
+      const aErro = normalize(a.erro).includes(q) ? 1 : 0;
+      const bErro = normalize(b.erro).includes(q) ? 1 : 0;
+      if(aErro !== bErro) return bErro - aErro;
+      return new Date(b.criadoEm) - new Date(a.criadoEm);
+    });
     resultsHead.style.display = 'flex';
     resultsLabel.textContent = matches.length + (matches.length===1 ? ' resultado' : ' resultados');
 
