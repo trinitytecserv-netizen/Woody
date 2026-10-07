@@ -641,6 +641,30 @@
   </div>
 </div>
 
+<!-- MODAL: editar colaborador -->
+<div class="modal-overlay" id="collabEditOverlay">
+  <div class="modal" style="max-width:420px;">
+    <h3>Editar colaborador</h3>
+    <div class="field">
+      <label for="ce_email">E-mail (Google)</label>
+      <input type="text" id="ce_email" placeholder="nome@empresa.com">
+    </div>
+    <div class="field">
+      <label for="ce_nome">Nome</label>
+      <input type="text" id="ce_nome" placeholder="Nome do colaborador">
+    </div>
+    <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-dim);">
+      <input type="checkbox" id="ce_admin" style="width:16px; height:16px;">
+      Administrador
+    </label>
+    <div class="locked-note inline" id="ceSelfNote" style="display:none;">Você não pode remover sua própria permissão de administrador por aqui.</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="collabEditCancelBtn">Cancelar</button>
+      <button class="btn btn-primary" id="collabEditSaveBtn">Salvar alterações</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-stack" id="toastStack"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -780,6 +804,12 @@ window.addEventListener('error', function(ev){
   async function deleteCollaboratorById(id){
     requireSupabase();
     const { error } = await sb.from('collaborators').delete().eq('id', id);
+    if(error) throw error;
+  }
+
+  async function updateCollaborator(id, email, nome, isAdmin){
+    requireSupabase();
+    const { error } = await sb.from('collaborators').update({ email, nome: nome || null, is_admin: !!isAdmin }).eq('id', id);
     if(error) throw error;
   }
 
@@ -1370,7 +1400,10 @@ window.addEventListener('error', function(ev){
         (c.is_admin ? '<span class="badge" style="color:var(--comp-title); border-color:rgba(244,172,8,0.35);">Administrador</span>' : '<span class="badge">Colaborador</span>') +
       '</div>' +
       '<div class="rec-footer"><span>Cadastrado em ' + fmtDate(c.criado_em) + '</span>' +
-        (isMe ? '' : '<button class="btn btn-danger btn-sm act-collab-delete" data-id="' + c.id + '" data-email="' + escapeHtml(c.email) + '">Excluir</button>') +
+        '<div style="display:flex; gap:8px;">' +
+          '<button class="btn btn-ghost btn-sm act-collab-edit" data-id="' + c.id + '">Editar</button>' +
+          (isMe ? '' : '<button class="btn btn-danger btn-sm act-collab-delete" data-id="' + c.id + '" data-email="' + escapeHtml(c.email) + '">Excluir</button>') +
+        '</div>' +
       '</div>' +
     '</div>';
   }
@@ -1445,12 +1478,82 @@ window.addEventListener('error', function(ev){
 
   collabList.addEventListener('click', (e) => {
     const delBtn = e.target.closest('.act-collab-delete');
-    if(!delBtn) return;
-    pendingDelete = { type:'collaborator', collaboratorId: delBtn.dataset.id, collaboratorEmail: delBtn.dataset.email };
-    document.getElementById('deleteTitle').textContent = 'Remover colaborador?';
-    document.getElementById('deleteSub').textContent = 'A pessoa com o e-mail ' + delBtn.dataset.email + ' perde o acesso ao sistema imediatamente. Não é possível desfazer.';
-    document.getElementById('deleteOverlay').classList.add('active');
+    if(delBtn){
+      pendingDelete = { type:'collaborator', collaboratorId: delBtn.dataset.id, collaboratorEmail: delBtn.dataset.email };
+      document.getElementById('deleteTitle').textContent = 'Remover colaborador?';
+      document.getElementById('deleteSub').textContent = 'A pessoa com o e-mail ' + delBtn.dataset.email + ' perde o acesso ao sistema imediatamente. Não é possível desfazer.';
+      document.getElementById('deleteOverlay').classList.add('active');
+      return;
+    }
+    const editBtn = e.target.closest('.act-collab-edit');
+    if(editBtn){
+      const c = COLLABORATORS.find(x => x.id === editBtn.dataset.id);
+      if(!c) return;
+      openCollabEditModal(c);
+    }
   });
+
+  let editingCollabId = null;
+  const collabEditOverlay = document.getElementById('collabEditOverlay');
+
+  function openCollabEditModal(c){
+    editingCollabId = c.id;
+    document.getElementById('ce_email').value = c.email;
+    document.getElementById('ce_nome').value = c.nome || '';
+    const adminEl = document.getElementById('ce_admin');
+    adminEl.checked = !!c.is_admin;
+    const isMe = CURRENT_USER && normalize(c.email) === normalize(CURRENT_USER.email);
+    adminEl.disabled = isMe;
+    document.getElementById('ceSelfNote').style.display = isMe ? 'flex' : 'none';
+    collabEditOverlay.classList.add('active');
+  }
+
+  document.getElementById('collabEditCancelBtn').addEventListener('click', () => {
+    collabEditOverlay.classList.remove('active');
+    editingCollabId = null;
+  });
+
+  document.getElementById('collabEditSaveBtn').addEventListener('click', async () => {
+    if(!editingCollabId) return;
+    const c = COLLABORATORS.find(x => x.id === editingCollabId);
+    if(!c) return;
+
+    const emailEl = document.getElementById('ce_email');
+    const nomeEl = document.getElementById('ce_nome');
+    const adminEl = document.getElementById('ce_admin');
+    const email = emailEl.value.trim().toLowerCase();
+    const nome = nomeEl.value.trim();
+    const isMe = CURRENT_USER && normalize(c.email) === normalize(CURRENT_USER.email);
+    const isAdmin = isMe ? true : adminEl.checked;
+
+    if(!email || !email.includes('@')){
+      toast('err', 'Informe um e-mail válido.');
+      emailEl.focus();
+      return;
+    }
+    if(COLLABORATORS.some(x => x.id !== editingCollabId && normalize(x.email) === normalize(email))){
+      toast('err', 'Já existe outro colaborador com esse e-mail.');
+      return;
+    }
+
+    const saveBtn = document.getElementById('collabEditSaveBtn');
+    saveBtn.disabled = true;
+    try{
+      await updateCollaborator(editingCollabId, email, nome, isAdmin);
+    }catch(err){
+      console.error('Erro ao atualizar colaborador', err);
+      toast('err', 'Não foi possível salvar: ' + (err && err.message ? err.message : String(err)));
+      saveBtn.disabled = false;
+      return;
+    }
+    saveBtn.disabled = false;
+    collabEditOverlay.classList.remove('active');
+    editingCollabId = null;
+    toast('ok', 'Colaborador atualizado.');
+    await refreshCollaborators();
+  });
+
+  collabEditOverlay.addEventListener('click', (e) => { if(e.target === collabEditOverlay) collabEditOverlay.classList.remove('active'); });
 
   /* edit / delete handlers (delegated) */
   const editOverlay = document.getElementById('editOverlay');
