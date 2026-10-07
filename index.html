@@ -556,6 +556,13 @@
           </div>
         </div>
 
+        <div class="toolbar">
+          <div class="search-mini">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="collabSearch" placeholder="Pesquisar colaborador por nome ou e-mail...">
+          </div>
+        </div>
+
         <div class="db-count" id="collabListCount"></div>
         <div class="db-list" id="collabList"></div>
         <div class="empty-state" id="collabEmpty" style="display:none;"></div>
@@ -605,6 +612,7 @@
   <div class="modal" style="max-width:560px;">
     <h3>Esse erro já está catalogado</h3>
     <p class="sub" id="confirmSolCount"></p>
+    <div class="rec-comp-title" id="confirmSolHeading" style="margin:0 0 10px; padding-top:0; border-top:none;"></div>
     <div id="confirmSolList" class="rec-solutions" style="border-top:none; padding-top:0; margin-top:2px;"></div>
 
     <div style="margin-top:18px; padding-top:16px; border-top:1px solid var(--border-soft);">
@@ -1216,6 +1224,7 @@ window.addEventListener('error', function(ev){
     pendingSolucao = { existing, novo };
     const procNorm = normalize(novo.procedimento);
     confirmSolCount.textContent = existing.solutions.length + (existing.solutions.length===1 ? ' solução já registrada para este erro:' : ' soluções já registradas para este erro:');
+    document.getElementById('confirmSolHeading').textContent = existing.solutions.length === 1 ? 'Solução Registrada' : 'Soluções Registradas';
     confirmSolList.innerHTML = existing.solutions.map((s,i) => {
       const isSame = normalize(s.texto) === procNorm;
       return '<div class="sol-item">' +
@@ -1367,16 +1376,25 @@ window.addEventListener('error', function(ev){
   }
 
   function renderCollabList(){
-    collabListCount.textContent = COLLABORATORS.length + (COLLABORATORS.length===1 ? ' colaborador cadastrado' : ' colaboradores cadastrados');
-    if(COLLABORATORS.length === 0){
+    const raw = document.getElementById('collabSearch').value;
+    const q = normalize(raw);
+    const filtered = q
+      ? COLLABORATORS.filter(c => normalize(c.nome || '').includes(q) || normalize(c.email).includes(q))
+      : COLLABORATORS;
+
+    collabListCount.textContent = filtered.length + (filtered.length===1 ? ' colaborador' : ' colaboradores') + (q ? ' encontrados' : ' cadastrados');
+
+    if(filtered.length === 0){
       collabList.innerHTML = '';
       collabEmpty.style.display = 'block';
-      collabEmpty.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><div class="t1">Nenhum colaborador cadastrado</div><div class="t2">Adicione um e-mail acima para liberar o acesso.</div>';
+      collabEmpty.innerHTML = q
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><div class="t1">Nenhum colaborador encontrado</div><div class="t2">Ajuste sua busca.</div>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><div class="t1">Nenhum colaborador cadastrado</div><div class="t2">Adicione um e-mail acima para liberar o acesso.</div>';
       return;
     }
     collabEmpty.style.display = 'none';
     collabList.className = 'db-list';
-    collabList.innerHTML = COLLABORATORS.map(collabCardHTML).join('');
+    collabList.innerHTML = filtered.map(collabCardHTML).join('');
   }
 
   async function refreshCollaborators(){
@@ -1390,6 +1408,8 @@ window.addEventListener('error', function(ev){
       showCollabBanner('err', 'Não foi possível carregar os colaboradores: ' + escapeHtml(err && err.message ? err.message : String(err)));
     }
   }
+
+  document.getElementById('collabSearch').addEventListener('input', renderCollabList);
 
   document.getElementById('collabAddBtn').addEventListener('click', async () => {
     const emailEl = document.getElementById('c_email');
