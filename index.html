@@ -290,6 +290,10 @@
   }
   .toolbar .search-mini svg{ width:15px; height:15px; color:var(--text-faint); flex-shrink:0; }
   .toolbar .search-mini input{ background:none; border:none; outline:none; color:var(--text); font-size:13px; flex:1; }
+  .select-mini{ display:flex; align-items:center; gap:8px; background:var(--field); border:1px solid var(--border); border-radius:10px; padding:0 8px 0 13px; }
+  .select-mini svg{ width:15px; height:15px; color:var(--text-faint); flex-shrink:0; }
+  .select-mini select{ background:transparent; border:none; outline:none; color:var(--text); font-size:13px; padding:9px 4px; max-width:230px; font-family:inherit; cursor:pointer; }
+  .select-mini select option{ background:#15151c; color:var(--text); }
   .view-toggle{ display:flex; border:1px solid var(--border); border-radius:9px; overflow:hidden; }
   .view-toggle button{ background:var(--panel); border:none; padding:9px 11px; color:var(--text-faint); display:flex; }
   .view-toggle button.active{ background:var(--blue-soft); color:var(--blue); }
@@ -503,6 +507,10 @@
           <div class="search-mini">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input type="text" id="baseSearch" placeholder="Filtrar registros...">
+          </div>
+          <div class="select-mini" title="Filtrar por analista">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <select id="baseAnalista" aria-label="Filtrar por analista"><option value="">Todos os analistas</option></select>
           </div>
           <div class="view-toggle">
             <button data-mode="list" class="active" aria-label="Ver em lista">
@@ -1310,6 +1318,7 @@ window.addEventListener('error', function(ev){
     });
   });
   baseSearch.addEventListener('input', renderBase);
+  document.getElementById('baseAnalista').addEventListener('change', renderBase);
   document.getElementById('baseRefreshBtn').addEventListener('click', () => refreshRecords());
 
   function updateDbCount(){ document.getElementById('dbCount').textContent = RECORDS.length; }
@@ -1355,20 +1364,40 @@ window.addEventListener('error', function(ev){
     '</div>';
   }
 
+  function populateAnalistaFilter(){
+    const sel = document.getElementById('baseAnalista');
+    const prev = sel.value;
+    const names = new Map();
+    const add = (n) => { const k = normalize(n); if(k && !names.has(k)) names.set(k, n); };
+    RECORDS.forEach(r => { add(r.criadoPor); r.solutions.forEach(s => add(s.analista)); });
+    const sortedNames = [...names.entries()].sort((a,b) => a[1].localeCompare(b[1], 'pt-BR'));
+    sel.innerHTML = '<option value="">Todos os analistas</option>' +
+      sortedNames.map(([k, n]) => '<option value="' + escapeHtml(k) + '">' + escapeHtml(n) + '</option>').join('');
+    sel.value = names.has(prev) ? prev : '';
+  }
+
   function renderBase(){
     updateDbCount();
+    populateAnalistaFilter();
     const raw = baseSearch.value;
     const q = normalize(raw);
-    const list = q ? RECORDS.filter(r => matchRecord(r, q)) : RECORDS;
+    const analista = document.getElementById('baseAnalista').value;
+    let list = RECORDS;
+    if(analista){
+      list = list.filter(r => normalize(r.criadoPor) === analista || r.solutions.some(s => normalize(s.analista) === analista));
+    }
+    if(q){
+      list = list.filter(r => matchRecord(r, q) || normalize(r.criadoPor).includes(q) || r.solutions.some(s => normalize(s.analista).includes(q)));
+    }
     const sorted = [...list].sort((a,b)=> new Date(b.criadoEm) - new Date(a.criadoEm));
 
     baseList.className = baseMode === 'grid' ? 'db-grid' : 'db-list';
-    baseCount.textContent = sorted.length + (sorted.length===1 ? ' registro' : ' registros') + (q ? ' encontrados' : ' no total');
+    baseCount.textContent = sorted.length + (sorted.length===1 ? ' registro' : ' registros') + ((q || analista) ? ' encontrados' : ' no total');
 
     if(sorted.length === 0){
       baseList.innerHTML = '';
       baseEmpty.style.display = 'block';
-      baseEmpty.innerHTML = q
+      baseEmpty.innerHTML = (q || analista)
         ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><div class="t1">Nenhum registro encontrado</div><div class="t2">Ajuste sua busca.</div>'
         : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/></svg><div class="t1">Nenhum registro ainda</div><div class="t2">Registros criados em "Novo Registro" aparecem aqui.</div>';
       return;
