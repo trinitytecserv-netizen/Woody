@@ -3,25 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Woody Search</title>
+<title>Woody Search — Prévia</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg: #0a0a0e;
-    --bg-sidebar: #0d0d12;
-    --panel: #131319;
-    --panel-2: #17171f;
-    --field: #15151c;
-    --border: #232330;
-    --border-soft: #1c1c25;
-    --text: #f2f1ee;
-    --text-dim: #a4a3af;
-    --text-faint: #66656f;
-    --blue: #3E8BFF;
-    --blue-soft: rgba(62,139,255,0.14);
-    --blue-dim: #6d93d6;
+    --bg: #030814;
+    --bg-sidebar: rgba(7,14,32,0.60);
+    --panel: rgba(11,20,44,0.48);
+    --panel-2: rgba(16,28,60,0.55);
+    --field: rgba(3,8,22,0.60);
+    --border: rgba(150,190,255,0.20);
+    --border-soft: rgba(150,190,255,0.11);
+    --text: #eef3ff;
+    --text-dim: #aebbd9;
+    --text-faint: #7384ab;
+    --blue: #4A9BFF;
+    --blue-soft: rgba(74,155,255,0.18);
+    --blue-dim: #86b0ee;
+    --glass-shadow: 0 10px 34px rgba(0,8,32,0.38), inset 0 1px 0 rgba(255,255,255,0.09);
     --red: #d1685a;
     --red-soft: rgba(209,104,90,0.12);
     --green: #7fae7a;
@@ -33,21 +34,24 @@
   html,body{margin:0;padding:0;}
   body{
     background:
-      radial-gradient(1100px 520px at 78% -8%, rgba(62,139,255,0.06), transparent 60%),
-      var(--bg);
+      radial-gradient(900px 620px at 10% -6%, rgba(30,78,190,0.26), transparent 62%),
+      radial-gradient(760px 560px at 96% 8%, rgba(0,140,200,0.11), transparent 62%),
+      radial-gradient(900px 700px at 62% 112%, rgba(70,56,190,0.17), transparent 62%),
+      linear-gradient(180deg, #040b20 0%, #02060e 100%);
+    background-attachment: fixed;
     color:var(--text);
-    font-family:'Inter', sans-serif;
+    font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif;
     -webkit-font-smoothing:antialiased;
     min-height:100vh;
   }
   h1,h2,h3, .display{
-    font-family:'Space Grotesk', sans-serif;
+    font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
     letter-spacing:-0.01em;
   }
   .mono{ font-family:'JetBrains Mono', monospace; }
   ::selection{ background:var(--blue-soft); color:var(--text); }
   ::-webkit-scrollbar{ width:10px; height:10px; }
-  ::-webkit-scrollbar-thumb{ background:#222229; border-radius:8px; border:2px solid var(--bg); }
+  ::-webkit-scrollbar-thumb{ background:rgba(140,180,255,0.28); border-radius:8px; border:2px solid var(--bg); }
   ::-webkit-scrollbar-track{ background:transparent; }
 
   a, button{ font-family:inherit; }
@@ -118,7 +122,7 @@
     background:linear-gradient(145deg, var(--blue), #1f4fa8);
     color:#f5f8ff; font-weight:700; font-size:11px;
     display:flex; align-items:center; justify-content:center;
-    font-family:'Space Grotesk';
+    font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter';
   }
   .whoami-name{ font-size:12.5px; font-weight:600; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .whoami-edit{ margin-left:auto; background:none; border:none; color:var(--text-faint); padding:4px; border-radius:6px; flex-shrink:0; }
@@ -199,7 +203,7 @@
     background:var(--field); border:1px solid var(--border-soft); border-radius:10px;
     padding:11px 13px; font-size:12.5px; line-height:1.55; color:var(--text); white-space:pre-wrap;
   }
-  .rec-field-box.emphasis{ font-family:'Space Grotesk'; font-size:13.5px; font-weight:600; }
+  .rec-field-box.emphasis{ font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter'; font-size:13.5px; font-weight:600; }
   .rec-comp-title{
     font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--comp-title); font-weight:600;
     margin:18px 0 10px; padding-top:14px; border-top:1px solid var(--border-soft);
@@ -366,6 +370,75 @@
   .mobile-bar img{ width:24px; }
   .mobile-bar button{ background:none; border:none; color:var(--text); margin-left:auto; }
   .mobile-bar svg{ width:20px; height:20px; }
+
+  /* ================= VISUAL: azul profundo + vidro fosco (estilo Apple) ================= */
+  .sidebar{
+    background:linear-gradient(180deg, rgba(11,22,52,0.66), rgba(3,8,22,0.62));
+    -webkit-backdrop-filter:blur(30px) saturate(170%); backdrop-filter:blur(30px) saturate(170%);
+    border-right:1px solid rgba(160,200,255,0.14);
+    box-shadow:inset -1px 0 0 rgba(255,255,255,0.04), 8px 0 40px rgba(0,8,32,0.30);
+  }
+  .nav-item{ border:1px solid transparent; border-radius:12px; }
+  .nav-item:hover{ background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.08); }
+  .nav-item.active{
+    background:linear-gradient(135deg, rgba(74,155,255,0.32), rgba(0,229,255,0.12));
+    border-color:rgba(130,185,255,0.38); color:#fff;
+    box-shadow:0 4px 18px rgba(40,110,255,0.28), inset 0 1px 0 rgba(255,255,255,0.18);
+  }
+  .nav-item.active svg{ color:#9fd0ff; }
+  .nav-count{ background:rgba(255,255,255,0.08); }
+
+  .result-card, .rec-card, .form-card, .whoami-box, .toast, .select-mini, .toolbar .search-mini{
+    -webkit-backdrop-filter:blur(22px) saturate(160%); backdrop-filter:blur(22px) saturate(160%);
+    box-shadow:var(--glass-shadow);
+  }
+  .result-card, .rec-card, .form-card{
+    background:linear-gradient(160deg, rgba(255,255,255,0.055), rgba(255,255,255,0.015));
+    border:1px solid rgba(170,205,255,0.16); border-radius:18px;
+  }
+  .result-card:hover{ border-color:rgba(130,190,255,0.5); box-shadow:0 14px 40px rgba(20,80,255,0.25), inset 0 1px 0 rgba(255,255,255,0.12); }
+  .rec-field-box{ background:rgba(2,6,18,0.50); border:1px solid rgba(170,205,255,0.11); border-radius:12px; }
+  .rec-footer, .rec-comp-title, .rec-actions{ border-color:rgba(170,205,255,0.12); }
+
+  .search-bar{
+    background:rgba(255,255,255,0.07); border:1px solid rgba(180,210,255,0.22); border-radius:20px;
+    -webkit-backdrop-filter:blur(24px) saturate(170%); backdrop-filter:blur(24px) saturate(170%);
+    box-shadow:0 12px 40px rgba(0,4,24,0.45), inset 0 1px 0 rgba(255,255,255,0.14);
+  }
+  .search-bar:focus-within{ border-color:rgba(120,190,255,0.7); box-shadow:0 0 0 4px rgba(74,155,255,0.20), 0 12px 40px rgba(0,4,24,0.45); }
+
+  .field input[type=text], .field textarea{
+    background:rgba(2,6,18,0.58); border:1px solid rgba(170,205,255,0.16); border-radius:12px;
+  }
+  .field input[type=text]:focus, .field textarea:focus{ border-color:rgba(120,190,255,0.75); box-shadow:0 0 0 3px rgba(74,155,255,0.18); }
+  .select-mini select option{ background:#08122b; color:#eef3ff; }
+
+  .btn{ border-radius:12px; }
+  .btn-primary{
+    background:linear-gradient(135deg, #5aaeff 0%, #2f6bff 100%); color:#fff;
+    box-shadow:0 8px 22px rgba(47,107,255,0.42), inset 0 1px 0 rgba(255,255,255,0.35);
+  }
+  .btn-primary:hover{ filter:brightness(1.08); }
+  .btn-ghost{ background:rgba(255,255,255,0.05); border-color:rgba(170,205,255,0.22); }
+  .btn-ghost:hover{ background:rgba(255,255,255,0.10); border-color:rgba(170,205,255,0.4); }
+  .btn-google{ border-radius:14px; box-shadow:0 10px 30px rgba(0,10,50,0.45), inset 0 1px 0 #fff; }
+
+  .modal-overlay{ background:rgba(1,4,14,0.62); -webkit-backdrop-filter:blur(12px) saturate(140%); backdrop-filter:blur(12px) saturate(140%); }
+  .modal{
+    background:linear-gradient(160deg, rgba(20,36,76,0.70), rgba(5,11,28,0.86));
+    -webkit-backdrop-filter:blur(30px) saturate(170%); backdrop-filter:blur(30px) saturate(170%);
+    border:1px solid rgba(180,210,255,0.24); border-radius:22px;
+    box-shadow:0 30px 80px rgba(0,6,30,0.60), inset 0 1px 0 rgba(255,255,255,0.14);
+  }
+  .toast{ background:rgba(7,14,34,0.80); border-radius:16px; border:1px solid rgba(180,210,255,0.22); }
+  .mobile-bar{ background:rgba(3,8,22,0.70); -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px); }
+  .whoami-box{ background:rgba(255,255,255,0.06); border-radius:14px; border:1px solid rgba(180,210,255,0.16); }
+  .view-toggle{ border-color:rgba(170,205,255,0.22); }
+  .view-toggle button{ background:rgba(255,255,255,0.05); }
+  .banner{ border-radius:14px; -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); }
+  .badge, .pill{ background:rgba(255,255,255,0.08); border-color:rgba(170,205,255,0.2); }
+  .pill-sol{ background:rgba(74,155,255,0.20); }
+  .credit-line{ color:#6f84b0; }
 </style>
 </head>
 <body>
@@ -673,9 +746,10 @@
   </div>
 </div>
 
+<div style="position:fixed; right:14px; bottom:14px; z-index:9998; font:600 11px/1 -apple-system,Inter,sans-serif; letter-spacing:.04em; color:#cfe3ff; background:rgba(20,40,90,.7); border:1px solid rgba(160,200,255,.3); padding:8px 12px; border-radius:20px; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);">PRÉVIA · dados de exemplo · nada é salvo</div>
 <div class="toast-stack" id="toastStack"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
 window.addEventListener('error', function(ev){
   try{
@@ -699,9 +773,12 @@ window.addEventListener('error', function(ev){
   const SUPABASE_URL = 'https://njxgkzeuixmnhyokfvuc.supabase.co';
   const SUPABASE_ANON_KEY = 'sb_publishable_G8fwYEdGly6SjjENiHsHoA__vz1O7cG';
 
-  const sb = (window.supabase && SUPABASE_ANON_KEY !== 'COLE_AQUI_SUA_CHAVE_ANON_PUBLIC')
-    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-    : null;
+  const sb = { auth: {
+    onAuthStateChange(){},
+    async getSession(){ return { data:{ session:{ user:{ id:'u-me', email:'trinitytecserv@gmail.com', user_metadata:{ full_name:'Humer Santos' } } } } }; },
+    async signOut(){ window.location.reload(); },
+    async signInWithOAuth(){}
+  } };
 
   function requireSupabase(){
     if(!sb){
@@ -709,7 +786,7 @@ window.addEventListener('error', function(ev){
     }
   }
 
-  async function fetchAllRecords(){
+  async function __real_fetchAllRecords(){
     requireSupabase();
     const { data: recs, error: e1 } = await sb
       .from('error_records')
@@ -741,7 +818,7 @@ window.addEventListener('error', function(ev){
     }));
   }
 
-  async function insertRecordWithSolution(problema, erro, analista, analistaUid, texto){
+  async function __real_insertRecordWithSolution(problema, erro, analista, analistaUid, texto){
     requireSupabase();
     const { data: rec, error: e1 } = await sb
       .from('error_records')
@@ -756,7 +833,7 @@ window.addEventListener('error', function(ev){
     return rec.id;
   }
 
-  async function insertSolution(recordId, texto, analista, analistaUid, complementar){
+  async function __real_insertSolution(recordId, texto, analista, analistaUid, complementar){
     requireSupabase();
     const { error } = await sb
       .from('error_solutions')
@@ -764,62 +841,105 @@ window.addEventListener('error', function(ev){
     if(error) throw error;
   }
 
-  async function updateRecordFields(recordId, problema, erro){
+  async function __real_updateRecordFields(recordId, problema, erro){
     requireSupabase();
     const { error } = await sb.from('error_records').update({ problema, erro }).eq('id', recordId);
     if(error) throw error;
   }
 
-  async function updateSolutionText(solutionId, texto){
+  async function __real_updateSolutionText(solutionId, texto){
     requireSupabase();
     const { error } = await sb.from('error_solutions').update({ texto }).eq('id', solutionId);
     if(error) throw error;
   }
 
-  async function deleteSolutionById(solutionId){
+  async function __real_deleteSolutionById(solutionId){
     requireSupabase();
     const { error } = await sb.from('error_solutions').delete().eq('id', solutionId);
     if(error) throw error;
   }
 
-  async function deleteRecordById(recordId){
+  async function __real_deleteRecordById(recordId){
     requireSupabase();
     const { error } = await sb.from('error_records').delete().eq('id', recordId);
     if(error) throw error;
   }
 
   /* ---------------- colaboradores ---------------- */
-  async function fetchMyCollaboratorRow(email){
+  async function __real_fetchMyCollaboratorRow(email){
     requireSupabase();
     const { data, error } = await sb.from('collaborators').select('id, email, nome, is_admin').eq('email', email).maybeSingle();
     if(error) throw error;
     return data || null;
   }
 
-  async function fetchCollaborators(){
+  async function __real_fetchCollaborators(){
     requireSupabase();
     const { data, error } = await sb.from('collaborators').select('id, email, nome, is_admin, criado_em').order('criado_em', { ascending:true });
     if(error) throw error;
     return data || [];
   }
 
-  async function insertCollaborator(email, nome, isAdmin){
+  async function __real_insertCollaborator(email, nome, isAdmin){
     requireSupabase();
     const { error } = await sb.from('collaborators').insert({ email, nome: nome || null, is_admin: !!isAdmin });
     if(error) throw error;
   }
 
-  async function deleteCollaboratorById(id){
+  async function __real_deleteCollaboratorById(id){
     requireSupabase();
     const { error } = await sb.from('collaborators').delete().eq('id', id);
     if(error) throw error;
   }
 
-  async function updateCollaborator(id, email, nome, isAdmin){
+  async function __real_updateCollaborator(id, email, nome, isAdmin){
     requireSupabase();
     const { error } = await sb.from('collaborators').update({ email, nome: nome || null, is_admin: !!isAdmin }).eq('id', id);
     if(error) throw error;
   }
+
+
+  /* ===== PRÉVIA: dados de exemplo em memória (nada vai para o Supabase) ===== */
+  const _d = (mins) => new Date(Date.now() - mins*60000).toISOString();
+  const DEMO = {
+    records: [
+      { id:'r1', problema:'Erro ao registrar log de acesso ao servidor.', erro:"Ocorreu um erro ao registrar log de acesso ao servidor: A coluna 'SHDCliente' não pertence à tabela Info.", criadoPor:'Humer Santos', criadoPorUid:'u-me', criadoEm:_d(60*5),
+        solutions:[
+          { id:'s1', texto:"No Utilitário Firebird Consumer (Servidor) > Manipulação de Dados, executamos o comando DELETE FROM ACESSOSERVIDOR;\nApós a execução, fechamos e reabrimos o sistema;\nO erro deixou de ocorrer.", analista:'Humer Santos', analistaUid:'u-me', data:_d(60*5), complementar:false },
+          { id:'s2', texto:"Caso o erro persista, verificar se a versão do banco do servidor é a mesma das estações e rodar o atualizador de base novamente.", analista:'Ana Souza', analistaUid:'u-ana', data:_d(60*2), complementar:true },
+          { id:'s3', texto:"Reiniciar o serviço do Firebird no servidor antes de reabrir o sistema resolveu em um segundo caso.", analista:'Carlos Lima', analistaUid:'u-carlos', data:_d(40), complementar:true }
+        ] },
+      { id:'r2', problema:'Impressora fiscal não responde ao emitir cupom.', erro:'Falha de comunicação com o ECF: porta COM3 não encontrada.', criadoPor:'Ana Souza', criadoPorUid:'u-ana', criadoEm:_d(60*26),
+        solutions:[ { id:'s4', texto:'Verificar no Gerenciador de Dispositivos qual porta COM o adaptador USB assumiu e ajustar a porta nas configurações do ECF.', analista:'Ana Souza', analistaUid:'u-ana', data:_d(60*26), complementar:false } ] },
+      { id:'r3', problema:'Sistema trava ao abrir o relatório de vendas.', erro:'Access violation at address 004A3F21 in module Vendas.exe.', criadoPor:'Carlos Lima', criadoPorUid:'u-carlos', criadoEm:_d(60*50),
+        solutions:[ { id:'s5', texto:'Limpar a pasta temporária do sistema e recriar o índice da tabela de vendas pelo utilitário de manutenção.', analista:'Carlos Lima', analistaUid:'u-carlos', data:_d(60*50), complementar:false } ] }
+    ],
+    collabs: [
+      { id:'c1', email:'trinitytecserv@gmail.com', nome:'Humer Santos', is_admin:true, criado_em:_d(60*400) },
+      { id:'c2', email:'humer.santos@programaconsumer.com.br', nome:'Humer Santos', is_admin:true, criado_em:_d(60*400) },
+      { id:'c3', email:'ana.souza@empresa.com', nome:'Ana Souza', is_admin:false, criado_em:_d(60*200) },
+      { id:'c4', email:'carlos.lima@empresa.com', nome:'Carlos Lima', is_admin:false, criado_em:_d(60*120) }
+    ]
+  };
+  const _id = () => 'x' + Math.random().toString(36).slice(2,9);
+  async function fetchAllRecords(){ return JSON.parse(JSON.stringify(DEMO.records)); }
+  async function insertRecordWithSolution(problema, erro, analista, analistaUid, texto){
+    DEMO.records.push({ id:_id(), problema, erro, criadoPor:analista, criadoPorUid:analistaUid, criadoEm:new Date().toISOString(),
+      solutions:[{ id:_id(), texto, analista, analistaUid, data:new Date().toISOString(), complementar:false }] });
+  }
+  async function insertSolution(recordId, texto, analista, analistaUid, complementar){
+    const r = DEMO.records.find(x => x.id === recordId); if(!r) return;
+    r.solutions.push({ id:_id(), texto, analista, analistaUid, data:new Date().toISOString(), complementar: complementar !== false });
+  }
+  async function updateRecordFields(recordId, problema, erro){ const r = DEMO.records.find(x => x.id === recordId); if(r){ r.problema = problema; r.erro = erro; } }
+  async function updateSolutionText(solutionId, texto){ DEMO.records.forEach(r => r.solutions.forEach(s => { if(s.id === solutionId) s.texto = texto; })); }
+  async function deleteSolutionById(solutionId){ DEMO.records.forEach(r => { r.solutions = r.solutions.filter(s => s.id !== solutionId); }); }
+  async function deleteRecordById(recordId){ DEMO.records = DEMO.records.filter(r => r.id !== recordId); }
+  async function fetchMyCollaboratorRow(email){ return DEMO.collabs.find(c => c.email === email) || null; }
+  async function fetchCollaborators(){ return JSON.parse(JSON.stringify(DEMO.collabs)); }
+  async function insertCollaborator(email, nome, isAdmin){ DEMO.collabs.push({ id:_id(), email, nome: nome || null, is_admin: !!isAdmin, criado_em:new Date().toISOString() }); }
+  async function deleteCollaboratorById(id){ DEMO.collabs = DEMO.collabs.filter(c => c.id !== id); }
+  async function updateCollaborator(id, email, nome, isAdmin){ const c = DEMO.collabs.find(x => x.id === id); if(c){ c.email = email; c.nome = nome || null; c.is_admin = !!isAdmin; } }
 
   /* ---------------- utils ---------------- */
   function normalize(str){
