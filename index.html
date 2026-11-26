@@ -532,7 +532,7 @@
         <div class="page-head">
           <div>
             <h1>Novo Registro</h1>
-            <p>Descreva o problema, o erro apresentado e o procedimento usado para resolvê-lo. Se o erro já existir na base, a solução será adicionada como complementar.</p>
+            <p>Descreva o problema, o erro apresentado (ou a descrição da situação) e o procedimento usado para resolvê-lo. Se o mesmo registro já existir na base, a solução será adicionada como complementar.</p>
           </div>
         </div>
 
@@ -546,9 +546,9 @@
               <textarea id="f_problema" placeholder="O que o usuário relatou / o que estava tentando fazer..."></textarea>
             </div>
             <div class="field">
-              <label for="f_erro">Erro apresentado <span style="color:var(--blue);">*</span></label>
-              <textarea id="f_erro" placeholder="Mensagem de erro, código, comportamento observado..."></textarea>
-              <div class="hint">Esse campo é usado para identificar se o erro já está catalogado.</div>
+              <label for="f_erro">Erro apresentado / Descrição da Situação <span style="color:var(--blue);">*</span></label>
+              <textarea id="f_erro" placeholder="Mensagem de erro e código, ou, se não houver erro, descreva a situação que está ocorrendo..."></textarea>
+              <div class="hint">Esse campo é usado para identificar se o erro ou a situação já está catalogado.</div>
             </div>
             <div class="field">
               <label for="f_procedimento">Procedimentos realizados para solução <span style="color:var(--blue);">*</span></label>
@@ -663,7 +663,7 @@
       <textarea id="e_problema"></textarea>
     </div>
     <div class="field">
-      <label for="e_erro">Erro apresentado</label>
+      <label for="e_erro">Erro apresentado / Descrição da Situação</label>
       <textarea id="e_erro"></textarea>
     </div>
     <div id="editSolutionsList" style="display:flex; flex-direction:column; gap:16px; margin-top:22px;"></div>
@@ -940,7 +940,7 @@ window.addEventListener('error', function(ev){
   function recordBodyHTML(rec, query){
     let html = '';
     html += fieldBlockHTML('Problema relatado', rec.problema, query);
-    html += fieldBlockHTML('Erro apresentado', rec.erro, query, 'emphasis');
+    html += fieldBlockHTML('Erro apresentado / Descrição da Situação', rec.erro, query, 'emphasis');
     const first = rec.solutions[0];
     html += '<div class="rec-field">' +
       '<div class="rec-field-label">Procedimentos realizados para solução</div>' +
@@ -1296,7 +1296,7 @@ window.addEventListener('error', function(ev){
     if(normalize(problema) === normalize(erro)){
       elProblema.style.borderColor = 'var(--red)';
       elErro.style.borderColor = 'var(--red)';
-      showBanner('err', 'Os campos <b>Problema relatado</b> e <b>Erro apresentado</b> não podem ter a mesma informação. Descreva cada um de forma diferente.');
+      showBanner('err', 'Os campos <b>Problema relatado</b> e <b>Erro apresentado / Descrição da Situação</b> não podem ter a mesma informação. Descreva cada um de forma diferente.');
       elErro.focus();
       return;
     }
@@ -1778,7 +1778,7 @@ window.addEventListener('error', function(ev){
       const p = document.getElementById('e_problema').value.trim();
       const er = document.getElementById('e_erro').value.trim();
       if(!p || !er){ toast('warn', 'Problema e erro não podem ficar vazios.'); return; }
-      if(normalize(p) === normalize(er)){ toast('warn', 'Problema relatado e Erro apresentado não podem ter a mesma informação.'); return; }
+      if(normalize(p) === normalize(er)){ toast('warn', 'Problema relatado e Erro apresentado / Descrição da Situação não podem ter a mesma informação.'); return; }
       newProblema = p; newErro = er;
     }
 
